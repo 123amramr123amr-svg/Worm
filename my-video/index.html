@@ -14,7 +14,7 @@
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background: radial-gradient(circle at center, #141b22 0%, #070a0f 100%);
+        background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0f1a2e 100%);
       }
       #root {
         width: 100%;
@@ -26,35 +26,80 @@
       }
       .clip { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; }
       .arabic { font-family: 'Amiri', serif; direction: rtl; }
-      #bg {
+      #bg-pattern {
         position: absolute;
         inset: 0;
-        opacity: 0.35;
-        background-image: radial-gradient(circle at 20% 30%, rgba(56,189,248,0.08) 0%, transparent 40%),
-                          radial-gradient(circle at 80% 70%, rgba(129,140,248,0.06) 0%, transparent 40%);
+        opacity: 0.15;
+        background-image:
+          radial-gradient(circle at 15% 20%, rgba(56,189,248,0.25) 0%, transparent 35%),
+          radial-gradient(circle at 85% 80%, rgba(251,191,36,0.2) 0%, transparent 35%),
+          radial-gradient(circle at 50% 50%, rgba(129,140,248,0.12) 0%, transparent 50%);
       }
       .ornament {
         position: absolute;
-        border: 1px solid rgba(56,189,248,0.18);
+        border: 2px solid rgba(251,191,36,0.3);
         border-radius: 50%;
         pointer-events: none;
         opacity: 0;
       }
-      #titleMain { color: #ffffff; font-size: 72px; font-weight: 800; top: 36%; opacity: 1; }
-      #titleSub { color: #94a3b8; font-size: 30px; top: 50%; opacity: 0; }
-      #accent { width: 0; height: 5px; background: linear-gradient(90deg,#38bdf8,#818cf8); top: 62%; opacity: 0; border-radius: 3px; }
-      #chapter { color: #38bdf8; font-size: 56px; font-weight: 700; top: 40%; opacity: 0; text-shadow: 0 0 24px rgba(56,189,248,0.35); }
-      #textBody { color: #e2e8f0; font-size: 34px; line-height: 1.85; max-width: 1100px; top: 56%; opacity: 0; }
-      #outro { top: 56%; opacity: 0; }
+      #titleMain {
+        color: #fbbf24;
+        font-size: 96px;
+        font-weight: 800;
+        top: 32%;
+        opacity: 1;
+        text-shadow: 0 0 40px rgba(251,191,36,0.4);
+      }
+      #titleSub {
+        color: #e2e8f0;
+        font-size: 44px;
+        font-weight: 400;
+        top: 52%;
+        opacity: 0;
+      }
+      #accent {
+        width: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #fbbf24, #38bdf8);
+        top: 66%;
+        opacity: 0;
+        border-radius: 3px;
+      }
+      #chapter {
+        color: #38bdf8;
+        font-size: 64px;
+        font-weight: 700;
+        top: 38%;
+        opacity: 0;
+        text-shadow: 0 0 30px rgba(56,189,248,0.5);
+      }
+      #textBody {
+        color: #f1f5f9;
+        font-size: 48px;
+        font-weight: 400;
+        line-height: 1.7;
+        max-width: 1300px;
+        top: 55%;
+        opacity: 0;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      }
+      #outro {
+        color: #fbbf24;
+        font-size: 72px;
+        font-weight: 700;
+        top: 46%;
+        opacity: 0;
+        text-shadow: 0 0 40px rgba(251,191,36,0.4);
+      }
     </style>
   </head>
   <body>
     <div id="root" data-composition-id="main" data-start="0" data-duration="60" data-width="1920" data-height="1080">
-      <audio id="bg-audio" data-start="0" data-duration="60" data-track-index="0" data-volume="0.18" src="audio/ambient.mp3"></audio>
-      <div id="bg"></div>
+      <div id="bg-pattern"></div>
       <div id="c1" class="ornament clip" data-start="0" data-duration="60" data-track-index="1"></div>
       <div id="c2" class="ornament clip" data-start="0" data-duration="60" data-track-index="2"></div>
       <div id="c3" class="ornament clip" data-start="0" data-duration="60" data-track-index="3"></div>
+
       <h1 id="titleMain" class="clip arabic" data-start="0" data-duration="10" data-track-index="4">قصّة النبي محمد ﷺ</h1>
       <h2 id="titleSub" class="clip arabic" data-start="4" data-duration="6" data-track-index="5">نبيّ الرحمة والمحبة</h2>
       <div id="accent" class="clip" data-start="8" data-duration="4" data-track-index="6"></div>
@@ -80,24 +125,24 @@
       window.__timelines = window.__timelines || {};
       const tl = gsap.timeline({ paused: true });
 
-      gsap.set('#c1', { x: 200, y: 200, width: 400, height: 400, borderColor: 'rgba(56,189,248,0.2)' });
-      gsap.set('#c2', { x: 1520, y: 680, width: 400, height: 400, borderColor: 'rgba(56,189,248,0.2)' });
-      gsap.set('#c3', { x: 900, y: 500, width: 300, height: 300, borderColor: 'rgba(56,189,248,0.2)' });
+      gsap.set('#c1', { x: 200, y: 200, width: 400, height: 400, borderColor: 'rgba(251,191,36,0.3)' });
+      gsap.set('#c2', { x: 1520, y: 680, width: 400, height: 400, borderColor: 'rgba(56,189,248,0.3)' });
+      gsap.set('#c3', { x: 900, y: 500, width: 300, height: 300, borderColor: 'rgba(129,140,248,0.3)' });
 
-      tl.to('#c1', { opacity: 0.45, duration: 2 }, 0);
+      tl.to('#c1', { opacity: 0.5, duration: 2 }, 0);
       tl.to('#c1', { x: 260, y: 260, duration: 8, repeat: 1, yoyo: true, ease: "sine.inOut" }, 2);
       tl.to('#c1', { opacity: 0, duration: 2 }, 56);
-      tl.to('#c2', { opacity: 0.45, duration: 2 }, 10);
+      tl.to('#c2', { opacity: 0.5, duration: 2 }, 10);
       tl.to('#c2', { x: 1460, y: 620, duration: 8, repeat: 1, yoyo: true, ease: "sine.inOut" }, 12);
       tl.to('#c2', { opacity: 0, duration: 2 }, 56);
-      tl.to('#c3', { opacity: 0.45, duration: 2 }, 20);
+      tl.to('#c3', { opacity: 0.5, duration: 2 }, 20);
       tl.to('#c3', { x: 980, y: 440, duration: 8, repeat: 1, yoyo: true, ease: "sine.inOut" }, 22);
       tl.to('#c3', { opacity: 0, duration: 2 }, 56);
 
       tl.to("#titleMain", { scale: 1.04, duration: 8, repeat: 1, yoyo: true, ease: "sine.inOut" }, 0);
       tl.to("#titleSub", { opacity: 1, y: -8, duration: 1, ease: "power2.out" }, 4);
       tl.to("#titleSub", { opacity: 0, y: 8, duration: 1, ease: "power2.in" }, 9);
-      tl.to("#accent", { width: 300, opacity: 1, duration: 1, ease: "power3.out" }, 8);
+      tl.to("#accent", { width: 400, opacity: 1, duration: 1, ease: "power3.out" }, 8);
       tl.to("#accent", { width: 0, opacity: 0, duration: 1, ease: "power2.in" }, 11);
 
       const chapter = (id, tId, s, d) => {
