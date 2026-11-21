@@ -26,9 +26,12 @@
 ### 2) شغّله محليًا
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # وضع BOT_TOKEN
-python bot.py
+cp .env.example .env   # ضع BOT_TOKEN
+python main.py          # أو python bot.py — الملفان يعملان
 ```
+
+> 💡 نقطة الدخول `main.py` موجودة لأن كثيرًا من منصات الاستضافة تشغّل
+> `python main.py` تلقائيًا. الملفان يعملان نفس الشيء تمامًا.
 
 ### 3) شغّله بـ Docker
 ```bash
@@ -53,7 +56,7 @@ docker run -d --env-file .env -v ai-bot-data:/app/data ai-bot
 ## 📂 بنية المشروع
 | الملف | الوظيفة |
 |---|---|
-| `bot.py` | نقطة التشغيل |
+| `main.py` / `bot.py` | نقطة التشغيل (كلاهما يعمل) |
 | `handlers.py` | معالجات الأوامر والأزرار والمحادثة |
 | `ai_client.py` | الاتصال بواجهة الذكاء الاصطناعي |
 | `memory.py` | ذاكرة المحادثة والتلخيص |

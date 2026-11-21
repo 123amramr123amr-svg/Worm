@@ -1,5 +1,6 @@
 """حفظ الملفات المرفوعة واستخراج النص منها (PDF, DOCX, XLSX, نصية...)."""
 import re
+import unicodedata
 from pathlib import Path
 
 import config
@@ -59,17 +60,36 @@ def extract_text(path: Path):
     return None
 
 
+def _normalize_arabic(text: str) -> str:
+    """يرجّع الحروف العربية من صيغة presentation forms إلى صيغتها الأصلية.
+
+    ملفات PDF المولّدة تحتوي الحروف مشكّلة بصيغة presentation forms
+    (ﻋﻨﻮﺍﻥ) وهي غير قابلة للقراءة كنص عادي، فنطبّعها باستخدام NFKC.
+    """
+    if not text:
+        return text
+    # NFKC يحوّل presentation forms إلى حروفها الأساسية
+    text = unicodedata.normalize("NFKC", text)
+    # إزالة التشكيل (harakat) إن وُجدت للحفاظ على وضوح النص
+    text = "".join(
+        ch for ch in text
+        if not (unicodedata.combining(ch) or "ً" <= ch <= "ْ")
+    )
+    return text
+
+
 def _pdf_text(path: Path) -> str:
     try:
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
-        return "\n".join((page.extract_text() or "") for page in reader.pages)
+        raw = "\n".join((page.extract_text() or "") for page in reader.pages)
     except Exception:
         import fitz  # PyMuPDF كبديل
 
         document = fitz.open(str(path))
-        return "\n".join(page.get_text() for page in document)
+        raw = "\n".join(page.get_text() for page in document)
+    return _normalize_arabic(raw)
 
 
 def _docx_text(path: Path) -> str:

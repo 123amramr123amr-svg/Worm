@@ -46,12 +46,22 @@ def _register_fonts() -> str:
 
 
 def _ar(text: str) -> str:
-    """يعيد تشكيل النص العربي وترتيبه بصريًا ليعمل داخل PDF."""
+    """يعيد تشكيل النص العربي وترتيبه بصريًا ليعمل داخل PDF.
+
+    مهم: يجب تطبيق المعالجة على النص العربي المجرد فقط (بدون وسوم HTML)،
+    لأن ReportLab يتعامل مع HTML داخليًا ولا يعرض النص كـ bidi إلا إذا
+    كان مجرّدًا. لذلك نُبقي الوسوم خارج عملية المعالجة.
+    """
     return get_display(arabic_reshaper.reshape(text))
 
 
 def _inline(text: str) -> str:
-    """يحوّل **عريض** ويهرب وسوم HTML ثم يعيد تشكيل العربية."""
+    """يحوّل **عريض** ويهرب وسوم HTML ثم يعيد تشكيل العربية.
+
+    الوسوم تُحفظ كما هي، والنص العربي المجرد حولها يُعالَج منفصلًا،
+    ثم يُعاد ترتيب المقاطع من اليمين إلى اليسار لأن ReportLab يعرض
+    النص المعالَج بترتيب visual.
+    """
     parts = re.split(r"(\*\*.+?\*\*)", text)
     out = []
     for part in parts:
@@ -59,7 +69,9 @@ def _inline(text: str) -> str:
             out.append("<b>" + _ar(html.escape(part[2:-2])) + "</b>")
         else:
             out.append(_ar(html.escape(part)))
-    return "".join(out)
+    # إعادة ترتيب المقاطع من اليمين لليسار: ReportLab يرسم كل مقطع
+    # بشكل مستقل، فترتيب المقاطع يجب أن يعكس الترتيب البصري العربي.
+    return "".join(reversed(out))
 
 
 def generate_pdf(text: str, out_path: Path, title: str = "مستند") -> Path:

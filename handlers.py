@@ -3,9 +3,11 @@ import asyncio
 import base64
 import logging
 import re
+import warnings
 
 from telegram import Update
 from telegram.constants import ChatAction
+from telegram.warnings import PTBUserWarning
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -25,6 +27,15 @@ import pdfgen
 from ai_client import AIClient, AIError
 
 log = logging.getLogger(__name__)
+
+# PTBUserWarning المتعلق بـ per_message: تحذير معلوماتي فقط لأننا نستخدم
+# MessageHandler داخل الحالات (لازم لاستقبال النصوص) مع CallbackQueryHandler
+# في نفس الوقت — وهو سلوك مدعوم ويعمل بشكل صحيح. نكتم التحذير تحديدًا.
+warnings.filterwarnings(
+    "ignore",
+    message=r".*per_message.*",
+    category=PTBUserWarning,
+)
 
 # حالات محادثة الإعدادات
 (
