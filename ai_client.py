@@ -93,18 +93,48 @@ class AIClient:
 
     async def list_models(self) -> list:
         data = await self._get("/models")
-        items = data.get("data") if isinstance(data, dict) else data
+        items = None
+        if isinstance(data, dict):
+            for key in ("data", "models", "result"):
+                if isinstance(data.get(key), list):
+                    items = data[key]
+                    break
+        elif isinstance(data, list):
+            items = data
         if not isinstance(items, list):
             raise AIError("استجابة غير متوقعة من الخادم.")
         model_ids = []
         for item in items:
-            if isinstance(item, dict) and item.get("id"):
-                model_ids.append(str(item["id"]))
+            if isinstance(item, dict):
+                model_id = item.get("id") or item.get("name")
+                if model_id:
+                    model_ids.append(str(model_id))
             elif isinstance(item, str):
                 model_ids.append(item)
         return model_ids
 
     # ---------- المحادثة (نص + صور) ----------
+
+    @staticmethod
+    def _extract_text(message) -> str:
+        """يستخرج النص من رسالة قد تكون نصًا أو قائمة أجزاء (تختلف بين المزوّدين)."""
+        if not isinstance(message, dict):
+            return ""
+        content = message.get("content")
+        if isinstance(content, str) and content:
+            return content
+        if isinstance(content, list):
+            parts = []
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text") or part.get("content")
+                    if text:
+                        parts.append(str(text))
+                elif isinstance(part, str):
+                    parts.append(part)
+            if parts:
+                return "\n".join(parts)
+        return ""
 
     async def chat(self, model: str, messages: list, temperature: float = 0.7) -> str:
         data = await self._post(
@@ -112,7 +142,7 @@ class AIClient:
             {"model": model, "messages": messages, "temperature": temperature},
         )
         try:
-            content = data["choices"][0]["message"]["content"]
+            content = self._extract_text(data["choices"][0]["message"])
             if content:
                 return content
         except (KeyError, IndexError, TypeError):
@@ -126,19 +156,45 @@ class AIClient:
     # ---------- الصور ----------
 
     async def generate_image(self, model: str, prompt: str, size: str = "1024x1024") -> bytes:
-        data = await self._post(
-            "/images/generations",
-            {"model": model, "prompt": prompt, "size": size, "n": 1},
-        )
-        items = data.get("data") or []
+        try:
+            data = await self._post(
+                "/images/generations",
+                {"model": model, "prompt": prompt, "size": size, "n": 1},
+            )
+        except AIError:
+            # Pollinations لا يوفر /images/generations — نستخدم واجهته المجانية
+            if "pollinations" in self.base_url:
+                return await self._pollinations_image(prompt)
+            raise
+        items = None
+        if isinstance(data, dict):
+            for key in ("data", "images", "output"):
+                if isinstance(data.get(key), list) and data[key]:
+                    items = data[key]
+                    break
         if not items:
             raise AIError("لم يرجع الخادم أي صورة.")
         item = items[0]
-        if item.get("b64_json"):
-            return base64.b64decode(item["b64_json"])
-        if item.get("url"):
-            return await self._download(item["url"])
+        if isinstance(item, dict):
+            if item.get("b64_json"):
+                return base64.b64decode(item["b64_json"])
+            if item.get("url"):
+                return await self._download(item["url"])
+            if item.get("base64"):
+                return base64.b64decode(item["base64"])
+            if item.get("image"):
+                return base64.b64decode(item["image"])
+        elif isinstance(item, str):
+            if item.startswith("http"):
+                return await self._download(item)
+            return base64.b64decode(item)
         raise AIError("استجابة الصورة غير متوقعة.")
+
+    async def _pollinations_image(self, prompt: str) -> bytes:
+        import urllib.parse
+
+        url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
+        return await self._download(url)
 
     # ---------- الفيديو ----------
 

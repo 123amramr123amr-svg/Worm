@@ -1,4 +1,6 @@
 """قاعدة بيانات SQLite: الإعدادات، المستخدمون، المحادثات، الرسائل، الملفات."""
+import json
+
 import aiosqlite
 
 import config
@@ -76,6 +78,21 @@ async def set_setting(key: str, value: str) -> None:
             (key, str(value)),
         )
         await db.commit()
+
+
+# ---------------- مزوّدو API ----------------
+
+async def get_profiles() -> list:
+    settings = await get_all_settings()
+    try:
+        profiles = json.loads(settings.get("profiles", "[]"))
+    except (ValueError, TypeError):
+        return []
+    return profiles if isinstance(profiles, list) else []
+
+
+async def save_profiles(profiles: list) -> None:
+    await set_setting("profiles", json.dumps(profiles, ensure_ascii=False))
 
 
 # ---------------- المستخدمون ----------------

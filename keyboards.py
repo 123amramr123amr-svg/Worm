@@ -19,6 +19,7 @@ def main_menu() -> InlineKeyboardMarkup:
 def settings_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
+            [_btn("🌐 المزوّدون", "set:providers"), _btn("🔌 اختبار الاتصال", "set:test")],
             [_btn("🔗 رابط API", "set:base_url"), _btn("🔑 المفتاح", "set:api_key")],
             [_btn("💬 نموذج المحادثة", "set:model:chat"), _btn("🖼️ نموذج الصور", "set:model:image")],
             [_btn("🎬 نموذج الفيديو", "set:model:video"), _btn("📝 التعليمات", "set:system_prompt")],
@@ -113,3 +114,42 @@ def filetype_keyboard() -> InlineKeyboardMarkup:
 
 def cancel_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[_btn("✖️ إلغاء", "cancel")]])
+
+
+# (الاسم، رابط API، هل يحتاج مفتاحًا؟)
+PROVIDER_PRESETS = [
+    ("OpenRouter", "https://openrouter.ai/api/v1", True),
+    ("Groq", "https://api.groq.com/openai/v1", True),
+    ("Together", "https://api.together.xyz/v1", True),
+    ("Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/", True),
+    ("DeepSeek", "https://api.deepseek.com/v1", True),
+    ("Mistral", "https://api.mistral.ai/v1", True),
+    ("Pollinations (مجاني بدون مفتاح)", "https://text.pollinations.ai/openai", False),
+    ("OpenAI", "https://api.openai.com/v1", True),
+    ("✏️ مخصص", "", True),
+]
+
+
+def presets_keyboard() -> InlineKeyboardMarkup:
+    rows = [
+        [_btn(name, f"preset:{i}")]
+        for i, (name, _url, _needs_key) in enumerate(PROVIDER_PRESETS)
+    ]
+    rows.append([_btn("✖️ إلغاء", "cancel")])
+    return InlineKeyboardMarkup(rows)
+
+
+def profiles_keyboard(profiles: list, active_name: str) -> InlineKeyboardMarkup:
+    rows = []
+    for i, profile in enumerate(profiles):
+        name = profile.get("name", "بدون اسم")
+        mark = "✅ " if name == active_name else ""
+        rows.append(
+            [
+                _btn(f"{mark}{name}"[:40], f"prov:use:{i}"),
+                _btn("🗑️", f"prov:del:{i}"),
+            ]
+        )
+    rows.append([_btn("➕ إضافة مزوّد جديد", "prov:add")])
+    rows.append([_btn("↩️ الإعدادات", "menu:settings")])
+    return InlineKeyboardMarkup(rows)

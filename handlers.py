@@ -34,7 +34,9 @@ log = logging.getLogger(__name__)
     SET_SYSTEM_PROMPT,
     SET_MEMORY_SIZE,
     SET_WELCOME,
-) = range(6)
+    SET_PROVIDER_URL,
+    SET_PROVIDER_KEY,
+) = range(8)
 
 MODEL_KIND_LABELS = {
     "chat": "💬 نموذج المحادثة",
@@ -127,8 +129,10 @@ async def _show_settings(message) -> None:
     prompt = s["system_prompt"]
     if len(prompt) > 60:
         prompt = prompt[:60] + "..."
+    active = s.get("active_profile") or "—"
     text = (
         "⚙️ الإعدادات الحالية:\n\n"
+        f"🌐 المزوّد النشط: {active}\n"
         f"🔗 رابط API: {s['base_url']}\n"
         f"🔑 المفتاح: {_mask_key(s['api_key'])}\n"
         f"💬 نموذج المحادثة: {s['chat_model']}\n"
@@ -143,12 +147,6 @@ async def _show_settings(message) -> None:
 
 async def _show_models(message, context) -> None:
     s = await _settings()
-    if not s["api_key"]:
-        await message.reply_text(
-            "⚠️ لم تضف مفتاح API بعد. اذهب إلى ⚙️ الإعدادات وأضف الرابط والمفتاح أولًا.",
-            reply_markup=kb.settings_menu(),
-        )
-        return
     await message.reply_text("⏳ جارٍ جلب النماذج من الخادم...")
     client = AIClient(s["base_url"], s["api_key"])
     try:
@@ -211,6 +209,7 @@ async def _show_help(message) -> None:
         "/help — هذه القائمة\n\n"
         "الأزرار:\n"
         "⚙️ الإعدادات: إضافة رابط API والمفتاح واختيار النماذج\n"
+        "🌐 المزوّدون: حفظ عدة مزوّدات والتنقل بينها (OpenRouter، Groq، Pollinations...)\n"
         "🤖 النماذج: جلب النماذج المرتبطة بمفتاحك واختيارها\n"
         "🧠 الذاكرة: تفعيل/تعطيل ذاكرة المحادثة وحجمها\n"
         "📁 المحادثات: إدارة محادثاتك السابقة\n"
@@ -238,6 +237,91 @@ async def _show_conversations(message, context) -> None:
         "📁 محادثاتك:\n\n" + "\n".join(lines),
         reply_markup=kb.conversations_keyboard(conversations[:15], current),
     )
+
+
+# ================= المزوّدون =================
+
+async def _show_providers(message) -> None:
+    profiles = await db.get_profiles()
+    s = await _settings()
+    active = s.get("active_profile") or ""
+    if not profiles:
+        text = (
+            "🌐 لا توجد مزوّدات محفوظة بعد.\n\n"
+            "يمكنك حفظ عدة مزوّدات (OpenRouter، Groq، Pollinations...) "
+            "والتنقل بينها بضغطة واحدة."
+        )
+    else:
+        lines = []
+        for profile in profiles:
+            mark = "✅ " if profile.get("name") == active else "•"
+            lines.append(f"{mark} {profile.get('name')} — {profile.get('base_url')}")
+        text = "🌐 المزوّدات المحفوظة:\n\n" + "\n".join(lines)
+    await message.reply_text(text, reply_markup=kb.profiles_keyboard(profiles, active))
+
+
+async def _test_connection(message) -> None:
+    s = await _settings()
+    await message.reply_text("🔌 جارٍ اختبار الاتصال...")
+    client = AIClient(s["base_url"], s["api_key"])
+    try:
+        models = await client.list_models()
+    except AIError as exc:
+        await message.reply_text(
+            f"❌ فشل الاتصال:\n{exc}\n\nتحقق من الرابط والمفتاح في ⚙️ الإعدادات.",
+            reply_markup=kb.settings_menu(),
+        )
+        return
+    await message.reply_text(
+        f"✅ الاتصال ناجح! الخادم يرجع {len(models)} نموذجًا.\n"
+        f"الرابط: {s['base_url']}",
+        reply_markup=kb.settings_menu(),
+    )
+
+
+async def _activate_profile(message, index: int) -> None:
+    profiles = await db.get_profiles()
+    if index < 0 or index >= len(profiles):
+        return
+    profile = profiles[index]
+    await db.set_setting("base_url", profile.get("base_url", ""))
+    await db.set_setting("api_key", profile.get("api_key", ""))
+    await db.set_setting("active_profile", profile.get("name", ""))
+    await message.reply_text(
+        f"✅ تم تفعيل المزوّد «{profile.get('name')}».\n"
+        "الآن اضغط 🤖 النماذج لجلب النماذج المتاحة.",
+        reply_markup=kb.settings_menu(),
+    )
+
+
+async def _delete_profile(message, index: int) -> None:
+    profiles = await db.get_profiles()
+    if index < 0 or index >= len(profiles):
+        return
+    removed = profiles.pop(index)
+    await db.save_profiles(profiles)
+    s = await _settings()
+    if s.get("active_profile") == removed.get("name"):
+        await db.set_setting("active_profile", "")
+    await message.reply_text(
+        f"🗑️ تم حذف المزوّد «{removed.get('name')}».",
+        reply_markup=kb.profiles_keyboard(profiles, s.get("active_profile") or ""),
+    )
+
+
+async def _save_profile(context, name: str, base_url: str, api_key: str) -> None:
+    profiles = await db.get_profiles()
+    existing = {p.get("name") for p in profiles}
+    final_name = name
+    counter = 2
+    while final_name in existing:
+        final_name = f"{name} {counter}"
+        counter += 1
+    profiles.append({"name": final_name, "base_url": base_url, "api_key": api_key})
+    await db.save_profiles(profiles)
+    await db.set_setting("base_url", base_url)
+    await db.set_setting("api_key", api_key)
+    await db.set_setting("active_profile", final_name)
 
 
 # ================= الأوامر =================
@@ -319,6 +403,19 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await _pick_model(update, context)
     elif data.startswith("model:assign:"):
         await _assign_model(update, context)
+    elif data == "set:providers":
+        await _show_providers(message)
+    elif data == "set:test":
+        await _test_connection(message)
+    elif data == "prov:add":
+        await message.reply_text(
+            "🌐 اختر المزوّد (أو «مخصص» لإدخال الرابط يدويًا):",
+            reply_markup=kb.presets_keyboard(),
+        )
+    elif data.startswith("prov:use:"):
+        await _activate_profile(message, int(data.split(":")[2]))
+    elif data.startswith("prov:del:"):
+        await _delete_profile(message, int(data.split(":")[2]))
     elif data == "set:memory_toggle":
         s = await _settings()
         new_value = "0" if s["memory_enabled"] == "1" else "1"
@@ -459,16 +556,71 @@ async def entry_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def entry_preset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    try:
+        index = int(query.data.split(":")[1])
+    except (IndexError, ValueError):
+        return ConversationHandler.END
+    if index < 0 or index >= len(kb.PROVIDER_PRESETS):
+        return ConversationHandler.END
+    name, url, needs_key = kb.PROVIDER_PRESETS[index]
+    context.user_data["pending_profile"] = {"name": name, "base_url": url}
+    if not url:
+        await query.message.reply_text(
+            "🔗 أرسل رابط API للمزوّد المخصص (مثال: https://example.com/v1):",
+            reply_markup=kb.cancel_keyboard(),
+        )
+        return SET_PROVIDER_URL
+    if not needs_key:
+        await _save_profile(context, name, url, "")
+        await query.message.reply_text(
+            f"✅ تم حفظ وتفعيل المزوّد «{name}» (بدون مفتاح).\n"
+            "اضغط 🤖 النماذج لجلب النماذج المتاحة.",
+            reply_markup=kb.settings_menu(),
+        )
+        return ConversationHandler.END
+    await query.message.reply_text(
+        f"🔑 أرسل مفتاح API الخاص بـ {name}:",
+        reply_markup=kb.cancel_keyboard(),
+    )
+    return SET_PROVIDER_KEY
+
+
+async def got_provider_url(update: Update, context):
+    pending = context.user_data.get("pending_profile", {})
+    pending["base_url"] = update.message.text.strip()
+    context.user_data["pending_profile"] = pending
+    await update.message.reply_text(
+        "🔑 أرسل مفتاح API (أو اكتب «بدون» إذا لم يكن مطلوبًا):",
+        reply_markup=kb.cancel_keyboard(),
+    )
+    return SET_PROVIDER_KEY
+
+
+async def got_provider_key(update: Update, context):
+    pending = context.user_data.pop("pending_profile", {})
+    key = update.message.text.strip()
+    if key.lower() in ("بدون", "none", "skip", "-"):
+        key = ""
+    await _save_profile(
+        context,
+        pending.get("name", "مخصص"),
+        pending.get("base_url", ""),
+        key,
+    )
+    await update.message.reply_text(
+        "✅ تم حفظ وتفعيل المزوّد.\nاضغط 🤖 النماذج لجلب النماذج المتاحة.",
+        reply_markup=kb.settings_menu(),
+    )
+    return ConversationHandler.END
+
+
 async def _start_model_pick(update: Update, context):
     kind = context.user_data.get("model_kind", "chat")
     label = MODEL_KIND_LABELS.get(kind, "النموذج")
     s = await _settings()
-    if not s["api_key"]:
-        await update.callback_query.message.reply_text(
-            f"⚠️ أضف مفتاح API أولًا، ثم اكتب اسم {label} يدويًا:",
-            reply_markup=kb.cancel_keyboard(),
-        )
-        return SET_MODEL
     await update.callback_query.message.reply_text("⏳ جارٍ جلب النماذج...")
     client = AIClient(s["base_url"], s["api_key"])
     try:
@@ -496,6 +648,7 @@ async def _start_model_pick(update: Update, context):
 
 async def got_base_url(update: Update, context):
     await db.set_setting("base_url", update.message.text.strip())
+    await db.set_setting("active_profile", "")
     await update.message.reply_text(
         "✅ تم حفظ الرابط.", reply_markup=kb.settings_menu()
     )
@@ -504,6 +657,7 @@ async def got_base_url(update: Update, context):
 
 async def got_api_key(update: Update, context):
     await db.set_setting("api_key", update.message.text.strip())
+    await db.set_setting("active_profile", "")
     await update.message.reply_text(
         "✅ تم حفظ المفتاح.", reply_markup=kb.settings_menu()
     )
@@ -789,7 +943,8 @@ def register(app: Application) -> None:
             CallbackQueryHandler(
                 entry_set,
                 pattern=r"^set:(base_url|api_key|model|system_prompt|memory_size|welcome)(:\w+)?$",
-            )
+            ),
+            CallbackQueryHandler(entry_preset, pattern=r"^preset:\d+$"),
         ],
         states={
             SET_BASE_URL: [
@@ -811,6 +966,12 @@ def register(app: Application) -> None:
             ],
             SET_WELCOME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, got_welcome)
+            ],
+            SET_PROVIDER_URL: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, got_provider_url)
+            ],
+            SET_PROVIDER_KEY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, got_provider_key)
             ],
         },
         fallbacks=[

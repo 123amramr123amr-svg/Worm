@@ -46,9 +46,12 @@ DEFAULT_SETTINGS = {
         "📕 إنشاء ملفات PDF\n"
         "📄 إنشاء ملفات برمجية (Python, HTML...)\n"
         "📥 قراءة الملفات والصور التي ترسلها\n\n"
-        "⚙️ قبل البدء: أضف رابط API ومفتاحك من زر الإعدادات بالأسفل."
+        "⚙️ قبل البدء: أضف مزوّدًا من زر الإعدادات (OpenRouter، Groq، "
+        "Pollinations...) ثم اختر نموذجك من 🤖 النماذج."
     ),
     "memory_enabled": "1",
     "memory_size": "20",
     "auto_delete": "0",
+    "profiles": "[]",
+    "active_profile": "",
 }
