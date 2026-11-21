@@ -13,4 +13,4 @@ COPY . .
 RUN mkdir -p data
 
 VOLUME ["/app/data"]
-CMD ["python", "bot.py"]
+CMD ["python", "main.py"]
